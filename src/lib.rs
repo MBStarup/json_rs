@@ -133,6 +133,32 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
     return (result, left_trim(remainder)); //. Trim trailing whitespace
 }
 
+pub fn print_json_str(json: &str) {
+    let mut indent: usize = 0;
+    let indent_base = "  ";
+    for char in json.chars() {
+        match char {
+            c if ['{', '['].contains(&c) => {
+                indent += 1;
+                let istr = indent_base.repeat(indent);
+                print!("{c}\n{istr}");
+            },
+            c if ['}', ']'].contains(&c) => {
+                indent -= 1;
+                let istr = indent_base.repeat(indent);
+                print!("\n{istr}{c}");
+            },
+            ',' => {
+                let istr = indent_base.repeat(indent);
+                print!(",\n{istr}");
+            },
+            c => {
+                print!("{c}");
+            },
+        }
+    }
+}
+
 // fn main() {
 //     let json = str::from_utf8(include_bytes!("test.json")).expect("Could not parse as utf8");
 //     let json_chars = json.chars().collect::<Vec<char>>();
