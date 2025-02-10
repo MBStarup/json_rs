@@ -132,15 +132,9 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
     };
 }
 
-fn main() {
-    let json = str::from_utf8(include_bytes!("test.json")).expect("Could not parse as utf8");
-    println!("{:?}", parse(&"23.3".chars().collect::<Vec<char>>()[..]));
-    println!("{:?}", parse(&"2".chars().collect::<Vec<char>>()[..]));
-    println!("{:?}", parse(&"-4".chars().collect::<Vec<char>>()[..]));
-    println!("{:?}", parse(&"0.44".chars().collect::<Vec<char>>()[..]));
-    println!("{:?}", parse(&"{\"a\":10}".chars().collect::<Vec<char>>()[..]));
-    println!("{:?}", parse(&"{\"b\":10,\"a\":-10}".chars().collect::<Vec<char>>()[..]));
-    let json_chars = json.chars().collect::<Vec<char>>();
-    let result = parse(&json_chars);
-    println!("{result:?}");
-}
+// fn main() {
+//     let json = str::from_utf8(include_bytes!("test.json")).expect("Could not parse as utf8");
+//     let json_chars = json.chars().collect::<Vec<char>>();
+//     let result = parse(&json_chars);
+//     println!("{result:?}");
+// }
