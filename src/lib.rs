@@ -21,7 +21,7 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
 
     let len = json.len();
     let mut end = 0;
-    return match json {
+    let (result, remainder) = match json {
         [c, ..] if c.is_whitespace() => parse(left_trim(&json[1..])), //. Skip whitespaces
         [c, ..] if ['-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(&c) => {
             let start = end;
@@ -130,6 +130,7 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
         [c, ..] => panic!("Unexpected character {c}, in {}", json.iter().collect::<String>()),
         [] => panic!("Unexpected end"),
     };
+    return (result, left_trim(remainder)); //. Trim trailing whitespace
 }
 
 // fn main() {
