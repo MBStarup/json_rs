@@ -3,6 +3,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
 pub enum JsonType {
+    Null,
     Int(i32),
     Float(f32),
     String(String),
@@ -73,6 +74,7 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
         },
         ['t', 'r', 'u', 'e', ..] => (JsonType::Bool(true), &json[4..]),
         ['f', 'a', 'l', 's', 'e', ..] => (JsonType::Bool(false), &json[5..]),
+        ['n', 'u', 'l', 'l', ..] => (JsonType::Null, &json[4..]),
         ['{', ..] => {
             let mut map: HashMap<String, JsonType> = Default::default();
             json = &json[1..];
