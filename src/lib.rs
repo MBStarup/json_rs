@@ -64,13 +64,78 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
         },
         [c, ..] if *c == '"' => {
             end += 1;
-            let start = end;
+            let mut str: String = String::new();
             while end < len && json[end] != '"' {
-                // TODO: Handle escape charso
-                end += 1;
+                if json[end] == '\\' {
+                    end += 1;
+                    if end >= len {
+                        println!("Error, unexpected EOF after \\ in unclosed string");
+                        panic!()
+                    }
+                    match json[end] {
+                        '"' | '\\' | '/' => {
+                            str.push(json[end]);
+                            end += 1;
+                        },
+                        'b' => {
+                            str.push('\x08');
+                            end += 1;
+                        },
+                        'f' => {
+                            str.push('\x0C');
+                            end += 1;
+                        },
+                        'n' => {
+                            str.push('\n');
+                            end += 1;
+                        },
+                        'r' => {
+                            str.push('\r');
+                            end += 1;
+                        },
+                        't' => {
+                            str.push('\t');
+                            end += 1;
+                        },
+                        'u' => {
+                            const UNICODE_CODE_POINT_HEX_DIGITS: usize = 4;
+                            end += 1;
+                            if end + UNICODE_CODE_POINT_HEX_DIGITS >= len {
+                                println!("Error, unexpected EOF after \\u in unclosed string, expected {UNICODE_CODE_POINT_HEX_DIGITS} hex digits");
+                                panic!()
+                            }
+                            let hex: [char; UNICODE_CODE_POINT_HEX_DIGITS] = unsafe { json[end..end + UNICODE_CODE_POINT_HEX_DIGITS].try_into().unwrap_unchecked() }; // NOTE[Safety]: The size [end..end+4[ is 4 elements. Assuming no usize addition overflow.
+                            let mut val = 0;
+                            for char in hex {
+                                val *= 16;
+                                val += match char {
+                                    '0'..'9' => char as u32 - '0' as u32,
+                                    'a'..'f' => 10 + char as u32 - 'a' as u32,
+                                    'A'..'F' => 10 + char as u32 - 'A' as u32,
+                                    _ => {
+                                        println!("Error, unexpected character {char} after \\u, expected {UNICODE_CODE_POINT_HEX_DIGITS} hex digits");
+                                        panic!()
+                                    },
+                                }
+                            }
+                            str.push(char::from_u32(val).expect("Unicode code point specified by \\u{hex:?} not valid char"));
+                            end += UNICODE_CODE_POINT_HEX_DIGITS;
+                        },
+                        c => {
+                            println!("Error, unexpected escape character \\{c} in string");
+                            panic!()
+                        },
+                    }
+                } else {
+                    str.push(json[end]);
+                    end += 1;
+                }
             }
-            let s = json[start..end].iter().collect::<String>();
-            (JsonType::String(s), &json[end + 1..]) //. Eat the end quote
+            if json[end] != '"' {
+                println!("Error, unexpected EOF in unclosed string");
+                panic!()
+            }
+            (JsonType::String(str), &json[end + 1..]) //. Eat the end quote
         },
         ['t', 'r', 'u', 'e', ..] => (JsonType::Bool(true), &json[4..]),
         ['f', 'a', 'l', 's', 'e', ..] => (JsonType::Bool(false), &json[5..]),
@@ -171,6 +236,24 @@ mod tests {
                 $(($key, $value)),*
             ])
         };
+    }
+
+    #[test]
+    fn escape_example() {
+        let input = r#"{ "escaped": "\" \\ \/ \b \f \n \r \t \u0041" }"#.chars().collect::<Vec<char>>();
+
+        let (parsed, remainder) = parse(&input);
+
+        let expected = JsonType::Object(hashmap! {
+            "escaped".to_string() => JsonType::String(
+               "\" \\ / \x08 \x0C \n \r \t A".to_string()
+            ),
+        });
+
+        assert_eq!(parsed, expected);
+        assert_eq!(remainder, []);
+
+        println!("{parsed:?}");
     }
 
     #[test]
