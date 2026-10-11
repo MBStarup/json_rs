@@ -20,9 +20,23 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
         str
     }
 
+    fn trim_comment(mut str: &[char]) -> &[char] {
+        match str {
+            ['/', '/', ..] => {
+                str = &str[2..];
+                while !str.is_empty() && str[0] != '\n' {
+                    str = &str[1..];
+                } //. The newline isn't trimmed but this is always used in conjunction with left_trim anyways
+            },
+            _ => {},
+        }
+        str
+    }
+
     let len = json.len();
     let mut end = 0;
-    let (result, remainder) = match json {
+    let (result, mut remainder) = match json {
+        ['/', '/', ..] => parse(trim_comment(json)),
         [c, ..] if c.is_whitespace() => parse(left_trim(&json[1..])), //. Skip whitespaces
         [c, ..] if ['-', '+', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'].contains(&c) => {
             let start = end;
@@ -145,6 +159,7 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
             json = &json[1..];
             loop {
                 match json {
+                    ['/', '/', ..] => json = trim_comment(json),
                     [c, ..] if c.is_whitespace() => json = left_trim(json),
                     [',', ..] => json = &json[1..],
                     ['}', ..] => {
@@ -179,6 +194,7 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
             loop {
                 // TODO: assert elements are same type
                 match json {
+                    ['/', '/', ..] => json = trim_comment(json),
                     [c, ..] if c.is_whitespace() => json = left_trim(json),
                     [',', ..] => json = &json[1..],
                     [']', ..] => {
@@ -197,7 +213,15 @@ pub fn parse(mut json: &[char]) -> (JsonType, &[char]) {
         [c, ..] => panic!("Unexpected character {c}, in {}", json.iter().collect::<String>()),
         [] => panic!("Unexpected end"),
     };
-    return (result, left_trim(remainder)); //. Trim trailing whitespace
+    loop {
+        //. Trim trailing whitespace and comments
+        match remainder {
+            ['/', '/', ..] => remainder = trim_comment(remainder),
+            [c, ..] if c.is_whitespace() => remainder = left_trim(remainder),
+            _ => break,
+        }
+    }
+    return (result, remainder);
 }
 
 pub fn print_json_str(json: &str) {
@@ -236,6 +260,36 @@ mod tests {
                 $(($key, $value)),*
             ])
         };
+    }
+
+    #[test]
+    fn comment_example() {
+        let input = r#"
+        // this is the first comment
+        {
+            // this is a comment
+            "a": 2.23, // this is another comment
+            "b": [
+                // you can put them here
+                "a", // and here
+            ], // trailling comma btw
+        }//finally a comment at the end as well"#
+            .chars()
+            .collect::<Vec<char>>();
+
+        let (parsed, remainder) = parse(&input);
+
+        let expected = JsonType::Object(hashmap! {
+            "a".to_string() => JsonType::Float(2.23),
+            "b".to_string() => JsonType::Array(vec![
+                JsonType::String("a".to_string()),
+            ]),
+        });
+
+        assert_eq!(parsed, expected);
+        assert_eq!(remainder, []);
+
+        println!("{parsed:?}");
     }
 
     #[test]
